@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Cloudformation Assignment 2026
+
+Parameters:
+
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Resources:
+  ContentBucket:
+    Type: AWS::S3::Bucket
+
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BucketAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:ListBucket, s3:GetObject, s3:PutObject]
+                Resource:
+                  - !GetAtt ContentBucket.Arn
+                  - !Sub '${ContentBucket.Arn}/*'
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  WebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t3.micro
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroupIds: [!GetAtt WebSecurityGroup.GroupId]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf install -y httpd
+          systemctl enable --now httpd
+          cat > /tmp/index.html <<'EOF'
+          <html>
+            <head><title>CloudFormation Assignment 2026</title></head>
+            <body>
+              <h1>L00205519 - James Smith</h1>
+              <p>This is a Test Page</p>
+            </body>
+          </html>
+          EOF
+          aws s3 cp /tmp/index.html s3://${ContentBucket}/index.html
+          aws s3 cp s3://${ContentBucket}/index.html /var/www/html/index.html
+
+Outputs:
+  WebsiteURL:
+    Value: !Sub 'http://${WebServer.PublicDnsName}'
+  BucketName:
+    Value: !Ref ContentBucket
