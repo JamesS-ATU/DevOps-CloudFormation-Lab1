@@ -5,6 +5,20 @@ Parameters:
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  ResourceName:
+    Type: String
+    Default: "Cloudformation Assignment 1"
+  StudentID:
+    Type: String
+    Default: "L00205519"
+
+  StudentName:
+    Type: String
+    Default: "James Smith"
+
+  Environment:
+    Type: String
+    Default: "Development"
 
 Resources:
   ContentBucket:
@@ -12,26 +26,26 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: Cloudformation Assignment 1
+          Value: !Ref ResourceName
         - Key: StudentID
-          Value: L00205519
+          Value: !Ref StudentID
         - Key: StudentName
-          Value: James Smith
+          Value: !Ref StudentName
         - Key: Environment
-          Value: Development
+          Value: !Ref Environment
         
   WebSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       Tags:
         - Key: Name
-          Value: Cloudformation Assignment 1
+          Value: !Ref ResourceName
         - Key: StudentID
-          Value: L00205519
+          Value: !Ref StudentID
         - Key: StudentName
-          Value: James Smith
+          Value: !Ref StudentName
         - Key: Environment
-          Value: Development
+          Value: !Ref Environment
       GroupDescription: Allow HTTP
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -44,13 +58,13 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: Cloudformation Assignment 1
+          Value: !Ref ResourceName
         - Key: StudentID
-          Value: L00205519
+          Value: !Ref StudentID
         - Key: StudentName
-          Value: James Smith
+          Value: !Ref StudentName
         - Key: Environment
-          Value: Development
+          Value: !Ref Environment
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -79,13 +93,13 @@ Resources:
     Properties:
       Tags:
       - Key: Name
-        Value: Cloudformation Assignment 1
+        Value: !Ref ResourceName
       - Key: StudentID
-        Value: L00205519
+        Value: !Ref StudentID
       - Key: StudentName
-        Value: James Smith
+        Value: !Ref StudentName
       - Key: Environment
-        Value: Development
+        Value: !Ref Environment
       ImageId: !Ref LatestAmiId
       InstanceType: t3.micro
       IamInstanceProfile: !Ref InstanceProfile
@@ -97,9 +111,9 @@ Resources:
           systemctl enable --now httpd
           cat > /tmp/index.html <<'EOF'
           <html>
-            <head><title>CloudFormation Assignment 2026</title></head>
+            <head><title>!Ref ResourceName</title></head>
             <body>
-              <h1>L00205519 - James Smith</h1>
+              <h1>!Ref StudentID - !Ref StudentName</h1>
               <p>This is a Test Page</p>
             </body>
           </html>
