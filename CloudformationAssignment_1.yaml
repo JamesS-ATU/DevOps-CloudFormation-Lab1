@@ -14,6 +14,15 @@ Resources:
   WebSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      Tags:
+      - Key: Name
+        Value: Cloudformation Assignment 1
+      - Key: StudentID
+        Value: L00205519
+      - Key: StudentName
+        Value: James Smith
+      - Key: Environment
+        Value: Development
       GroupDescription: Allow HTTP
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -24,6 +33,15 @@ Resources:
   InstanceRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+      - Key: Name
+        Value: Cloudformation Assignment 1
+      - Key: StudentID
+        Value: L00205519
+      - Key: StudentName
+        Value: James Smith
+      - Key: Environment
+        Value: Development
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -45,11 +63,29 @@ Resources:
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
+      Tags:
+      - Key: Name
+        Value: Cloudformation Assignment 1
+      - Key: StudentID
+        Value: L00205519
+      - Key: StudentName
+        Value: James Smith
+      - Key: Environment
+        Value: Development
       Roles: [!Ref InstanceRole]
 
   WebServer:
     Type: AWS::EC2::Instance
     Properties:
+      Tags:
+      - Key: Name
+        Value: Cloudformation Assignment 1
+      - Key: StudentID
+        Value: L00205519
+      - Key: StudentName
+        Value: James Smith
+      - Key: Environment
+        Value: Development
       ImageId: !Ref LatestAmiId
       InstanceType: t3.micro
       IamInstanceProfile: !Ref InstanceProfile
