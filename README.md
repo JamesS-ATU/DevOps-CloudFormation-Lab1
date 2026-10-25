@@ -22,4 +22,13 @@ Good practice dictates that each resource that supports tagging should be tagged
 <h3>Branch: Add-Parameters-For-Global-Use </h3>
 Replace Hardcoded Tags with Parameters which are then referenced throughout the script and name and studentID are added to the HTML
 
+<h3>Branch: AddConstraintsToParameters </h3>
+
+Add Constraints to Parameters
++ StudentID is constrained to starting with L and having 8 Digits
++ Environment is constrained to Development, QA, UAT and Production
++ CidrBlock Must be a valid IPv4 CIDR block
+
+  
+
 

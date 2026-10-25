@@ -11,6 +11,8 @@ Parameters:
   StudentID:
     Type: String
     Default: "L00205519"
+    AllowedPattern: '^L[0-9]{8}$'
+    ConstraintDescription: Must start with L followed by exactly 8 digits (e.g. L00205519).
 
   StudentName:
     Type: String
@@ -18,7 +20,20 @@ Parameters:
 
   Environment:
     Type: String
-    Default: "Development"
+    Default: Development
+    AllowedValues:
+      - Development
+      - QA
+      - UAT
+      - Production
+    ConstraintDescription: Must be Development, QA, UAT or Production.
+  
+  AllowedCIDRIp:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR block permitted to access the web server
+    AllowedPattern: ^((25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\.){3}(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})/(3[0-2]|[12]?[0-9])$
+    ConstraintDescription: Must be a valid IPv4 CIDR block.
 
 Resources:
   ContentBucket:
@@ -51,7 +66,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Ref AllowedCIDRIp
 
   InstanceRole:
     Type: AWS::IAM::Role
