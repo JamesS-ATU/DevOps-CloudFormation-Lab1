@@ -12,3 +12,6 @@ There is only 1 parameter which is the ImageID and defaults to the Latest Linux 
 The initial Template was generated from CoPilot using the prompt
 > Create a cloudformation script to create a Website for a public facing webservice to host the website, use an s3 bucket to store the content of the web pages
 
+**25/10/2026** 
+Adding Tags to Resources
+Good practice dictates that each resource that supports tagging should be tagged. There doesnt seem to be a Global tagging resource or object that can be referenced by all resources globally so the same tags have been applied to all 
