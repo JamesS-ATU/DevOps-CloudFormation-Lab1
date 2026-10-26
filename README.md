@@ -1,5 +1,5 @@
 <h1> DevOps-CloudFormation-Lab1</h1>
-
+<h2>CloudformationAssignment_1.yaml</h2>
 <h3>Branch:InitialBranch</h3>
 
 This is the Initial setup of the AWS Cloud Formation consisting of an:
@@ -33,6 +33,8 @@ Add Constraints to Parameters
 Added in a Parameter to select Port 80 or 443, This is to signify HTTP or HTTPS. Most Modern websites should default to HTTPS for Security Concerns. 
 For this Demo because SSL Certificates are not defined I am just using 443 as a Placeholder 
 
-  
+<h2>CloudformationAssignment_2.yaml</h2>
+<h3>Branch:Create3TierArchitecture</h3>
+Using the YAML created in assignment 1, CloudFormationAssignment_2.yaml was created to implement a 3 tier architecture that includes Web, Application and Database tier.
 
 
