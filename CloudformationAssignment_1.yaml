@@ -28,6 +28,17 @@ Parameters:
       - Production
     ConstraintDescription: Must be Development, QA, UAT or Production.
   
+  WebPort:
+    Type: Number
+    Default: 80
+    AllowedValues:
+      - 80
+      - 443
+    Description: Choose HTTP (80) or HTTPS (443)
+
+  Conditions:
+    UseHTTPS: !Equals [!Ref WebPort, 443]
+
   AllowedCIDRIp:
     Type: String
     Default: 0.0.0.0/0
@@ -64,8 +75,8 @@ Resources:
       GroupDescription: Allow HTTP
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: !Ref WebPort
+          ToPort: !Ref WebPort
           CidrIp: !Ref AllowedCIDRIp
 
   InstanceRole:
@@ -138,6 +149,6 @@ Resources:
 
 Outputs:
   WebsiteURL:
-    Value: !Sub 'http://${WebServer.PublicDnsName}'
+    Value: !Sub 'http://${WebServer.PublicDnsName}:${WebPort}'
   BucketName:
     Value: !Ref ContentBucket
