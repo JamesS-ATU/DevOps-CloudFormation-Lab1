@@ -29,6 +29,10 @@ Add Constraints to Parameters
 + Environment is constrained to Development, QA, UAT and Production
 + CidrBlock Must be a valid IPv4 CIDR block
 
+<h3>Branch: AddConditionForHTTPS</h3>
+Added in a Parameter to select Port 80 or 443, This is to signify HTTP or HTTPS. Most Modern websites should default to HTTPS for Security Concerns. 
+For this Demo because SSL Certificates are not defined I am just using 443 as a Placeholder 
+
   
 
 
