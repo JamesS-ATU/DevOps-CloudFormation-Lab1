@@ -33,6 +33,11 @@ Add Constraints to Parameters
 Added in a Parameter to select Port 80 or 443, This is to signify HTTP or HTTPS. Most Modern websites should default to HTTPS for Security Concerns. 
 For this Demo because SSL Certificates are not defined I am just using 443 as a Placeholder 
 
-  
+<h3>Branch: FixIssues</h3>  
+After running script through validation by LLM (CoPilot) a number of issues were identified and fixed. 
+
+Copilot Prompt:
+
+> Validate this Cloudformation script, Ignore any HTML issues (uploaded file)
 
 
