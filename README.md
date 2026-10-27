@@ -35,6 +35,17 @@ For this Demo because SSL Certificates are not defined I am just using 443 as a 
 
 <h2>CloudformationAssignment_2.yaml</h2>
 <h3>Branch:Create3TierArchitecture</h3>
-Using the YAML created in assignment 1, CloudFormationAssignment_2.yaml was created to implement a 3 tier architecture that includes Web, Application and Database tier.
+Using the YAML created in assignment 1, CloudFormationAssignment_2.yaml was created to implement a 3 tier architecture that includes:
 
++ Web Tier
++ Application Tier 
++ Database tier.
 
+For this architecture each tier will only be able to access the preceding tier, i.e. Web -> Application -> Database
+This is demonstrated through the Security groups:
+
++ Web Security Group
++ Application Security Group
++ Database Security Group
+
+  
