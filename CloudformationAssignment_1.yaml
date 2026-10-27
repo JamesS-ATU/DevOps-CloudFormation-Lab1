@@ -36,8 +36,6 @@ Parameters:
       - 443
     Description: Choose HTTP (80) or HTTPS (443)
 
-  Conditions:
-    UseHTTPS: !Equals [!Ref WebPort, 443]
 
   AllowedCIDRIp:
     Type: String
@@ -47,6 +45,72 @@ Parameters:
     ConstraintDescription: Must be a valid IPv4 CIDR block.
 
 Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceName}-VPC'
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceName}-IGW'
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceName}-PublicSubnet'
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+
   ContentBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -63,6 +127,7 @@ Resources:
   WebSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      VpcId: !Ref VPC
       Tags:
         - Key: Name
           Value: !Ref ResourceName
@@ -127,24 +192,26 @@ Resources:
       - Key: Environment
         Value: !Ref Environment
       ImageId: !Ref LatestAmiId
+      SubnetId: !Ref PublicSubnet
       InstanceType: t3.micro
       IamInstanceProfile: !Ref InstanceProfile
-      SecurityGroupIds: [!GetAtt WebSecurityGroup.GroupId]
+      SecurityGroupIds: 
+        - !Ref WebSecurityGroup
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
           dnf install -y httpd
           systemctl enable --now httpd
-          cat > /tmp/index.html <<'EOF'
+          cat > /var/www/html/index.html <<EOF
           <html>
-            <head><title>!Ref ResourceName</title></head>
+            <head><title>${ResourceName}</title></head>
             <body>
-              <h1>!Ref StudentID - !Ref StudentName</h1>
+              <h1>${StudentID} - ${StudentName}</h1>
               <p>This is a Test Page</p>
             </body>
           </html>
           EOF
-          aws s3 cp /tmp/index.html s3://${ContentBucket}/index.html
+          aws s3 cp /var/www/html/index.html s3://${ContentBucket}/index.html
           aws s3 cp s3://${ContentBucket}/index.html /var/www/html/index.html
 
 Outputs:
