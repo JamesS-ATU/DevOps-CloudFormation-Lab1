@@ -1,0 +1,226 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Cloudformation Assignment 2026 - 3 Tier Architecture (web, application, database)
+
+Parameters:
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  ResourceName:
+    Type: String
+    Default: "Cloudformation Assignment 2 - Three Tier"
+  StudentID:
+    Type: String
+    Default: "L00205519"
+    AllowedPattern: '^L[0-9]{8}$'
+    ConstraintDescription: Must start with L followed by exactly 8 digits (e.g. L00205519).
+  StudentName:
+    Type: String
+    Default: "James Smith"
+  Environment:
+    Type: String
+    Default: Development
+    AllowedValues: [Development, QA, UAT, Production]
+
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref ResourceName
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+  
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+
+
+  WebSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+    GroupDescription: Web Tier
+    VpcId: !Ref VPC
+    SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+
+AppSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+    GroupDescription: Application Tier
+    VpcId: !Ref VPC
+    SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        SourceSecurityGroupId: !Ref WebSecurityGroup
+
+DatabaseSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+    GroupDescription: Database Tier
+    VpcId: !Ref VPC
+    SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: !Ref AppSecurityGroup
+
+
+  ContentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref ResourceName
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+
+  # ---------- Database tier ----------
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets for the database
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+
+ Database:
+  Type: AWS::RDS::DBInstance
+  Properties:
+    Engine: mysql
+    DBInstanceClass: db.t4g.micro
+    AllocatedStorage: 20
+    MasterUsername: admin
+    ManageMasterUserPassword: true
+    VPCSecurityGroups:
+      - !Ref DatabaseSecurityGroup
+    Tags:
+      - Key: Name
+        Value: !Ref ResourceName
+      - Key: StudentID
+        Value: !Ref StudentID
+      - Key: StudentName
+        Value: !Ref StudentName
+      - Key: Environment
+        Value: !Ref Environment
+
+
+ AppServer:
+  Type: AWS::EC2::Instance
+  Properties:
+    ImageId: !Ref LatestAmiId
+    InstanceType: t3.micro
+    SubnetId: !Ref PrivateSubnet
+    SecurityGroupIds:
+      - !Ref AppSecurityGroup
+    Tags:
+      - Key: Name
+        Value: !Ref ResourceName
+      - Key: StudentID
+        Value: !Ref StudentID
+      - Key: StudentName
+        Value: !Ref StudentName
+      - Key: Environment
+        Value: !Ref Environment
+    UserData:
+      Fn::Base64: !Sub |
+        #!/bin/bash
+        dnf install -y httpd
+        systemctl enable --now httpd
+
+        cat > /var/www/html/index.html <<EOF
+        <html>
+        <body>
+          <h1>${StudentID} - ${StudentName}</h1>
+          <h2>Three Tier Architecture</h2>
+          <p>Web Tier</p>
+          <p>Application Tier EC2 Instance</p>
+          <p>Database Tier RDS MySQL</p>
+        </body>
+        </html>
+        EOF
+
+  # ---------- Web tier (public subnet) ----------
+  WebServer:
+    Type: AWS::EC2::Instance
+    DependsOn: PublicRoute
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t3.micro
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref WebSecurityGroup]
+
+
+      MetadataOptions:
+        HttpTokens: required
+      Tags:
+        - Key: Name
+          Value: !Ref ResourceName
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf install -y httpd
+          cat > /tmp/index.html <<'EOF'
+          <html>
+            <head><title>${ResourceName}</title></head>
+            <body>
+              <h1>${StudentID} - ${StudentName}</h1>
+              <p>Web tier: this page is stored in S3 and served by Apache.</p>
+              <a href="/api/">Application tier</a> | <a href="/api/db">Database check</a>
+            </body>
+          </html>
+          EOF
+          aws s3 cp /tmp/index.html s3://${ContentBucket}/index.html
+          aws s3 cp s3://${ContentBucket}/index.html /var/www/html/index.html
+          cat > /etc/httpd/conf.d/app-proxy.conf <<'EOF'
+          ProxyPass "/api/" "http://${AppServer.PrivateIp}:8080/"
+          ProxyPassReverse "/api/" "http://${AppServer.PrivateIp}:8080/"
+          EOF
+          systemctl enable --now httpd
+
+Outputs:
+  WebsiteURL:
+    Value: !Sub 'http://${WebServer.PublicDnsName}'
+  BucketName:
+    Value: !Ref ContentBucket
