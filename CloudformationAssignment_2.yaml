@@ -1,0 +1,385 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Assignment 2 - Three Tier Architecture
+
+Parameters:
+
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+  ResourceName:
+    Type: String
+    Default: "Cloudformation Assignment 2"
+
+  StudentID:
+    Type: String
+    Default: "L00205519"
+    AllowedPattern: '^L[0-9]{8}$'
+    ConstraintDescription: Must start with L followed by exactly 8 digits
+
+  StudentName:
+    Type: String
+    Default: "James Smith"
+
+  Environment:
+    Type: String
+    Default: Development
+    AllowedValues:
+      - Development
+      - QA
+      - UAT
+      - Production
+
+  WebPort:
+    Type: Number
+    Default: 80
+    AllowedValues:
+      - 80
+      - 443
+
+  AllowedCIDRIp:
+    Type: String
+    Default: 0.0.0.0/0
+    AllowedPattern: ^((25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\.){3}(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})/(3[0-2]|[12]?[0-9])$
+
+Resources:
+
+#########################################################################
+# VPC
+
+#########################################################################
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceName}-VPC'
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+#########################################################################
+# INTERNET ACCESS
+# The internet gateway is attached to the VPC to allow the public subnet to access the internet.
+#########################################################################
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+#########################################################################
+# SUBNETS
+# The architecture includes one public subnet for the web tier and two private subnets for the application and database tiers. 
+# This design ensures that the web server can be accessed from the internet, while the application and database servers remain isolated for security.
+#########################################################################
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+
+#########################################################################
+# ROUTING
+# The routing configuration ensures that the public subnet can access the internet through the internet gateway, 
+# while the private subnets remain isolated from direct internet access.
+#########################################################################
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+#########################################################################
+# STORAGE
+# An S3 bucket is created to store content for the web server, allowing for scalable and durable storage of static assets.
+#########################################################################
+
+  ContentBucket:
+    Type: AWS::S3::Bucket
+
+#########################################################################
+# IAM
+# The IAM role and instance profile are created to allow the web server to access the S3 bucket for content storage.
+#########################################################################
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+      Policies:
+        - PolicyName: S3ContentAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt ContentBucket.Arn
+
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub '${ContentBucket.Arn}/*'
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+#########################################################################
+# SECURITY GROUPS
+# Each tier has its own security group to control access and enforce the principle of least privilege.
+# Each security group only allows ingress from the preceiding tier, and the web tier allows ingress from the specified CIDR IP range.
+#########################################################################
+
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Web Tier
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref WebPort
+          ToPort: !Ref WebPort
+          CidrIp: !Ref AllowedCIDRIp
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App Tier
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref WebSecurityGroup
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database Tier
+      VpcId: !Ref VPC
+
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+
+#########################################################################
+# WEB TIER
+# The web server is deployed in the public subnet and is configured to serve content from the S3 bucket.
+#########################################################################
+
+  WebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+
+      ImageId: !Ref LatestAmiId
+      InstanceType: t3.micro
+
+      IamInstanceProfile: !Ref InstanceProfile
+
+      SubnetId: !Ref PublicSubnet
+
+      SecurityGroupIds:
+        - !Ref WebSecurityGroup
+
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceName}-WebServer
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+
+          dnf install -y httpd aws-cli
+
+          systemctl enable httpd
+          systemctl start httpd
+
+          cat > /var/www/html/index.html <<EOF
+          <html>
+          <head>
+          <title>${ResourceName}</title>
+          </head>
+          <body>
+          <h1>${StudentID} - ${StudentName}</h1>
+
+          <h2>Three Tier Architecture</h2>
+
+          <p>Web Tier - EC2 Apache Server</p>
+          <p>Application Tier - EC2 Application Server</p>
+          <p>Database Tier - Amazon RDS MySQL</p>
+
+          </body>
+          </html>
+          EOF
+
+          aws s3 cp /var/www/html/index.html s3://${ContentBucket}/index.html
+
+#########################################################################
+# APPLICATION TIER
+# The application server is deployed in a private subnet and only allows access from the web server, 
+# ensuring that it is not directly accessible from the internet.
+#########################################################################
+
+  AppServer:
+    Type: AWS::EC2::Instance
+    Properties:
+
+      ImageId: !Ref LatestAmiId
+      InstanceType: t3.micro
+
+      SubnetId: !Ref PrivateSubnetA
+
+      SecurityGroupIds:
+        - !Ref AppSecurityGroup
+
+      Tags:
+        - Key: Name
+           Value: !Sub '${ResourceName}-ApplicationServer
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+#########################################################################
+# DATABASE TIER
+# The database server is deployed in a private subnet and only allows access from the application server,
+# ensuring that it is not directly accessible from the internet.
+#########################################################################
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Database subnets
+
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+
+      Engine: mysql
+      DBInstanceClass: db.t4g.micro
+
+      AllocatedStorage: 20
+
+      MasterUsername: admin
+
+      ManageMasterUserPassword: true
+
+      DBSubnetGroupName: !Ref DBSubnetGroup
+
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+
+      PubliclyAccessible: false
+
+      MultiAZ: false
+
+      BackupRetentionPeriod: 7
+
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceName}-Database'
+        - Key: StudentID
+          Value: !Ref StudentID
+        - Key: StudentName
+          Value: !Ref StudentName
+        - Key: Environment
+          Value: !Ref Environment
+
+#########################################################################
+# OUTPUTS
+# The outputs provide information about the deployed resources, 
+# including the website URL, S3 bucket name, database endpoint, and application server private IP address.
+#########################################################################
+
+Outputs:
+
+  WebsiteURL:
+    Description: Website URL
+    Value: !Sub 'http://${WebServer.PublicDnsName}:${WebPort}'
+
+  BucketName:
+    Description: Content Bucket
+    Value: !Ref ContentBucket
+
+  DatabaseEndpoint:
+    Description: Database Endpoint
+    Value: !GetAtt Database.Endpoint.Address
+
+  ApplicationServerPrivateIP:
+    Description: App Server Private IP
+    Value: !GetAtt AppServer.PrivateIp
