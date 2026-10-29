@@ -48,4 +48,4 @@ This is demonstrated through the Security groups:
 + Application Security Group
 + Database Security Group
 
-  
+> This project used Copilot for initial Template Creation and Validation and Visual Studio Code to Validate Syntax and structure  
