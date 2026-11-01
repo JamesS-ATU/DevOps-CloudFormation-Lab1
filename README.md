@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project demonstrates the evolution of AWS CloudFormation templates through a series of controlled enhancements focused on:
+This project demonstrates the development of AWS CloudFormation templates through a series of enhancements focusing on:
 
 - Infrastructure as Code (IaC)
 - Parameterisation and validation
