@@ -8,8 +8,7 @@ This project demonstrates the evolution of AWS CloudFormation templates through 
 - Parameterisation and validation
 - Security best practices
 - Scalable architecture design
-- AI-assisted development
-
+  
 Microsoft Copilot was used to generate, validate, and improve CloudFormation templates, while Visual Studio Code was used to validate YAML syntax and structure.
 
 ---
@@ -37,7 +36,7 @@ The website content is stored in S3 and served from a Linux EC2 instance.
 
 ### Requirment
 
-Create a minimal working solution before introducing complexity.
+Create a working solution before introducing complexity.
 
 ### Implementation
 
@@ -47,7 +46,7 @@ Create a minimal working solution before introducing complexity.
 
 ### Description
 
-Starting with a simple deployment provides a stable baseline that can be enhanced incrementally.
+Starting with a simple deployment provides a stable base that can be enhanced.
 
 ---
 
@@ -55,7 +54,7 @@ Starting with a simple deployment provides a stable baseline that can be enhance
 
 ### Requirement
 
-Apply consistent tags across all supported resources.
+Apply consistent tags on all supported resources.
 
 ### Implementation
 
